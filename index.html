@@ -1,1 +1,879 @@
-aaaa
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Mapiary — 地図につづる、あなたの毎日</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+/* ======== RESET & BASE ======== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --purple: #7C6FE0;
+  --purple-dark: #5A4FBF;
+  --purple-light: #EAE8FF;
+  --green: #29B97A;
+  --green-light: #D5F4E8;
+  --coral: #F06060;
+  --coral-light: #FFE5E5;
+  --pink: #E86CA0;
+  --pink-light: #FFE0EF;
+  --amber: #F5A623;
+  --blue: #4EA8DE;
+  --surface: #FFFFFF;
+  --surface2: #F5F5F7;
+  --surface3: #EBEBF0;
+  --text: #1A1A2E;
+  --text2: #5A5A7A;
+  --text3: #9898B0;
+  --border: rgba(0,0,0,0.09);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.10);
+  --shadow-md: 0 8px 32px rgba(0,0,0,0.13);
+  --shadow-pin: 0 4px 14px rgba(0,0,0,0.20);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --nav-h: 70px;
+  --top-h: 60px;
+}
+html, body {
+  width: 100%; height: 100%;
+  font-family: 'Nunito', 'Noto Sans JP', sans-serif;
+  background: #E8F0E8;
+  overflow: hidden;
+}
+
+/* ======== LAYOUT ======== */
+#app {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  position: relative;
+  max-width: 480px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+/* ======== MAP CANVAS ======== */
+#map {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #D8EDD8;
+}
+#map-svg {
+  width: 100%; height: 100%;
+  position: absolute; inset: 0;
+}
+
+/* ======== TOP BAR ======== */
+#topbar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: var(--top-h);
+  padding: 10px 12px 8px;
+  display: flex; align-items: center; gap: 8px;
+  z-index: 100;
+  pointer-events: none;
+}
+#topbar > * { pointer-events: auto; }
+.search-pill {
+  flex: 1;
+  height: 40px;
+  background: var(--surface);
+  border-radius: 20px;
+  border: none;
+  box-shadow: var(--shadow-sm);
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 14px;
+  font-family: inherit; font-size: 14px;
+  color: var(--text3);
+  cursor: pointer;
+}
+.search-pill i { font-size: 17px; color: var(--text3); }
+.my-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--purple);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800;
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  border: 2.5px solid #fff;
+  flex-shrink: 0;
+}
+
+/* ======== FRIEND FILTER ======== */
+#filter-bar {
+  position: absolute;
+  top: calc(var(--top-h) + 4px);
+  left: 0; right: 0;
+  padding: 0 12px;
+  display: flex; gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  z-index: 99;
+  pointer-events: none;
+}
+#filter-bar::-webkit-scrollbar { display: none; }
+#filter-bar > * { pointer-events: auto; }
+.chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 12px;
+  border-radius: 14px;
+  font-size: 12px; font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text2);
+  box-shadow: var(--shadow-sm);
+  border: none;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  flex-shrink: 0;
+}
+.chip:active { transform: scale(0.95); }
+.chip.active { background: var(--purple); color: #fff; }
+.chip .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+
+/* ======== PINS ======== */
+.pin-wrap {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  cursor: pointer;
+  z-index: 50;
+  transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), opacity 0.2s;
+}
+.pin-wrap:hover { transform: translate(-50%, -100%) scale(1.12); }
+.pin-wrap.hidden { opacity: 0; pointer-events: none; transform: translate(-50%,-100%) scale(0.6); }
+.pin-bubble {
+  width: 50px; height: 50px;
+  border-radius: 50% 50% 50% 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  border: 3px solid #fff;
+  box-shadow: var(--shadow-pin);
+}
+.pin-tail {
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  margin: 0 auto;
+  position: relative; top: -2px;
+}
+.pin-name {
+  text-align: center;
+  font-size: 10px; font-weight: 700;
+  color: var(--text);
+  background: rgba(255,255,255,0.88);
+  border-radius: 8px;
+  padding: 1px 6px;
+  margin-top: 2px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+  white-space: nowrap;
+}
+
+/* ======== FAB ======== */
+#fab {
+  position: absolute;
+  bottom: calc(var(--nav-h) + 14px);
+  right: 16px;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: var(--purple);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(124,111,224,0.45);
+  cursor: pointer;
+  z-index: 100;
+  border: none;
+  transition: transform 0.15s;
+}
+#fab:active { transform: scale(0.93); }
+#fab i { font-size: 26px; color: #fff; }
+
+/* ======== BOTTOM NAV ======== */
+#bottom-nav {
+  height: var(--nav-h);
+  background: var(--surface);
+  display: flex;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 100;
+}
+.nav-btn {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  color: var(--text3);
+  font-size: 10px; font-weight: 700;
+  border: none; background: none;
+  font-family: inherit;
+  transition: color 0.15s;
+  padding-bottom: 4px;
+}
+.nav-btn.active { color: var(--purple); }
+.nav-btn i { font-size: 24px; }
+
+/* ======== DIARY SHEET ======== */
+#diary-sheet {
+  position: absolute;
+  bottom: var(--nav-h);
+  left: 0; right: 0;
+  background: var(--surface);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: 0 -4px 30px rgba(0,0,0,0.13);
+  z-index: 200;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  padding: 0 0 20px;
+  max-height: 70%;
+  overflow-y: auto;
+}
+#diary-sheet.open { transform: translateY(0); }
+.sheet-handle {
+  width: 40px; height: 4px;
+  background: var(--surface3);
+  border-radius: 2px;
+  margin: 12px auto 14px;
+}
+.sheet-close {
+  position: absolute;
+  top: 12px; right: 14px;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2); font-size: 16px;
+}
+.sheet-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px 12px;
+}
+.sheet-avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800; color: #fff;
+  flex-shrink: 0;
+}
+.sheet-meta { flex: 1; min-width: 0; }
+.sheet-name { font-size: 15px; font-weight: 800; color: var(--text); }
+.sheet-loc {
+  font-size: 12px; color: var(--text3);
+  display: flex; align-items: center; gap: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sheet-loc i { font-size: 13px; flex-shrink: 0; }
+.sheet-time { font-size: 11px; color: var(--text3); white-space: nowrap; }
+
+.sheet-photo {
+  margin: 0 16px 12px;
+  height: 160px;
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 52px;
+  position: relative;
+  overflow: hidden;
+}
+.photo-timestamp {
+  position: absolute;
+  bottom: 10px; right: 10px;
+  font-size: 11px; font-weight: 700;
+  color: #fff;
+  background: rgba(0,0,0,0.38);
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-family: monospace;
+}
+.sheet-text {
+  padding: 0 16px 14px;
+  font-size: 14px; line-height: 1.7;
+  color: var(--text);
+}
+.reaction-row {
+  padding: 0 16px;
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.react-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  color: var(--text2);
+  font-family: inherit;
+  transition: background 0.13s, border-color 0.13s, transform 0.1s;
+}
+.react-btn:active { transform: scale(0.93); }
+.react-btn.on { background: var(--purple-light); border-color: var(--purple); color: var(--purple-dark); }
+.react-btn .cnt { font-size: 12px; }
+
+/* ======== POST SHEET ======== */
+#post-sheet {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  z-index: 300;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  display: flex; flex-direction: column;
+}
+#post-sheet.open { transform: translateY(0); }
+.post-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.post-header h2 { font-size: 17px; font-weight: 800; color: var(--text); flex: 1; }
+.post-header button {
+  border: none; background: none; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  color: var(--text3);
+}
+#post-submit {
+  background: var(--purple) !important;
+  color: #fff !important;
+  border-radius: 14px !important;
+  padding: 6px 14px !important;
+}
+.post-body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.post-photo-pick {
+  height: 150px;
+  border-radius: var(--radius-md);
+  background: var(--surface2);
+  border: 2px dashed var(--surface3);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; cursor: pointer;
+  color: var(--text3); font-size: 13px; font-weight: 600;
+}
+.post-photo-pick i { font-size: 30px; }
+.post-photo-preview {
+  height: 150px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 60px; position: relative;
+}
+.post-photo-preview .remove-photo {
+  position: absolute; top: 8px; right: 8px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(0,0,0,0.45); color: #fff;
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.emoji-pick { display: flex; gap: 8px; flex-wrap: wrap; }
+.emoji-opt {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--surface2); border: 2px solid transparent;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; cursor: pointer;
+  transition: border-color 0.12s, transform 0.1s;
+}
+.emoji-opt.sel { border-color: var(--purple); background: var(--purple-light); }
+.emoji-opt:active { transform: scale(0.9); }
+label.post-label { font-size: 12px; font-weight: 800; color: var(--text2); margin-bottom: 4px; display: block; }
+textarea.post-ta {
+  width: 100%; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--surface3);
+  padding: 10px 12px; font-family: inherit; font-size: 14px;
+  color: var(--text); background: var(--surface2);
+  resize: none; outline: none;
+  line-height: 1.6;
+  transition: border-color 0.15s;
+}
+textarea.post-ta:focus { border-color: var(--purple); }
+.post-location-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--surface2); cursor: pointer;
+}
+.post-location-row i { font-size: 18px; color: var(--coral); }
+.post-location-row span { font-size: 13px; font-weight: 600; color: var(--text2); flex: 1; }
+.privacy-toggle {
+  display: flex; gap: 6px;
+}
+.priv-btn {
+  flex: 1; padding: 8px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--surface3);
+  background: var(--surface2); cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 700;
+  color: var(--text3); display: flex; align-items: center; justify-content: center; gap: 5px;
+  transition: all 0.13s;
+}
+.priv-btn.sel { border-color: var(--green); background: var(--green-light); color: #1A7A50; }
+.priv-btn i { font-size: 15px; }
+
+/* ======== FRIEND LIST OVERLAY ======== */
+#friend-overlay {
+  position: absolute; inset: 0;
+  background: var(--surface);
+  z-index: 300;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  display: flex; flex-direction: column;
+}
+#friend-overlay.open { transform: translateY(0); }
+.overlay-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.overlay-header h2 { font-size: 17px; font-weight: 800; color: var(--text); flex: 1; }
+.overlay-close { border: none; background: none; cursor: pointer; color: var(--text3); font-size: 22px; }
+.friend-list { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.friend-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface2);
+  cursor: pointer;
+  transition: background 0.13s;
+}
+.friend-row:hover { background: var(--surface3); }
+.friend-row-avatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800; color: #fff;
+}
+.friend-row-info { flex: 1; }
+.friend-row-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.friend-row-last { font-size: 12px; color: var(--text3); }
+.friend-row-dot { width: 9px; height: 9px; border-radius: 50%; }
+
+/* ======== TOAST ======== */
+#toast {
+  position: absolute;
+  top: calc(var(--top-h) + 60px);
+  left: 50%; transform: translateX(-50%) translateY(-10px);
+  background: var(--text); color: #fff;
+  border-radius: 20px; padding: 8px 18px;
+  font-size: 13px; font-weight: 700;
+  opacity: 0; pointer-events: none;
+  z-index: 999;
+  transition: opacity 0.2s, transform 0.2s;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ======== SCROLLBAR ======== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- MAP -->
+  <div id="map">
+    <!-- Map SVG Background -->
+    <svg id="map-svg" viewBox="0 0 480 600" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+      <!-- Base -->
+      <rect width="480" height="600" fill="#D4EAD4"/>
+      <!-- Grid roads -->
+      <line x1="0" y1="200" x2="480" y2="200" stroke="#fff" stroke-width="7" opacity="0.7"/>
+      <line x1="0" y1="330" x2="480" y2="330" stroke="#fff" stroke-width="5" opacity="0.6"/>
+      <line x1="0" y1="450" x2="480" y2="450" stroke="#fff" stroke-width="7" opacity="0.7"/>
+      <line x1="120" y1="0" x2="120" y2="600" stroke="#fff" stroke-width="5" opacity="0.6"/>
+      <line x1="260" y1="0" x2="260" y2="600" stroke="#fff" stroke-width="7" opacity="0.7"/>
+      <line x1="380" y1="0" x2="380" y2="600" stroke="#fff" stroke-width="5" opacity="0.6"/>
+      <!-- Parks -->
+      <rect x="290" y="50" width="130" height="100" rx="14" fill="#A8D8A8" opacity="0.7"/>
+      <rect x="20" y="260" width="90" height="60" rx="10" fill="#A8D8A8" opacity="0.65"/>
+      <rect x="300" y="370" width="70" height="70" rx="10" fill="#A8D8A8" opacity="0.65"/>
+      <!-- Water -->
+      <ellipse cx="400" cy="400" rx="50" ry="35" fill="#9ECAE1" opacity="0.55"/>
+      <!-- Buildings -->
+      <rect x="140" y="210" width="35" height="35" rx="5" fill="#C5D5C5" opacity="0.5"/>
+      <rect x="185" y="215" width="25" height="30" rx="4" fill="#C5D5C5" opacity="0.4"/>
+      <rect x="30" y="70" width="70" height="50" rx="6" fill="#C5D5C5" opacity="0.4"/>
+      <rect x="290" y="210" width="50" height="40" rx="5" fill="#C5D5C5" opacity="0.4"/>
+      <rect x="140" y="340" width="30" height="50" rx="4" fill="#C5D5C5" opacity="0.45"/>
+    </svg>
+
+    <!-- Pins (inserted by JS) -->
+    <div id="pins"></div>
+
+    <!-- Top Bar -->
+    <div id="topbar">
+      <div class="search-pill">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        場所や友達を検索…
+      </div>
+      <div class="my-avatar" onclick="openFriends()" title="フレンド一覧">あ</div>
+    </div>
+
+    <!-- Filter Chips -->
+    <div id="filter-bar"></div>
+
+    <!-- FAB -->
+    <button id="fab" onclick="openPost()" aria-label="日記を投稿">
+      <i class="ti ti-plus"></i>
+    </button>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" onclick="setNav(this,'map')">
+      <i class="ti ti-map-2"></i>マップ
+    </button>
+    <button class="nav-btn" onclick="setNav(this,'friends');openFriends()">
+      <i class="ti ti-users"></i>フレンド
+    </button>
+    <button class="nav-btn" onclick="setNav(this,'diary')">
+      <i class="ti ti-notebook"></i>日記
+    </button>
+    <button class="nav-btn" onclick="setNav(this,'notif')">
+      <i class="ti ti-bell"></i>通知
+    </button>
+    <button class="nav-btn" onclick="setNav(this,'profile')">
+      <i class="ti ti-user"></i>プロフィール
+    </button>
+  </nav>
+
+  <!-- Diary Sheet -->
+  <div id="diary-sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeSheet()"><i class="ti ti-x"></i></button>
+    <div class="sheet-header">
+      <div class="sheet-avatar" id="s-avatar"></div>
+      <div class="sheet-meta">
+        <div class="sheet-name" id="s-name"></div>
+        <div class="sheet-loc"><i class="ti ti-map-pin"></i><span id="s-place"></span></div>
+      </div>
+      <div class="sheet-time" id="s-time"></div>
+    </div>
+    <div class="sheet-photo" id="s-photo">
+      <span id="s-emoji"></span>
+      <div class="photo-timestamp" id="s-ptime"></div>
+    </div>
+    <div class="sheet-text" id="s-text"></div>
+    <div class="reaction-row" id="s-reactions"></div>
+  </div>
+
+  <!-- Post Sheet -->
+  <div id="post-sheet">
+    <div class="post-header">
+      <button onclick="closePost()" style="color:var(--text3);font-size:22px;line-height:1;background:none;border:none;cursor:pointer;font-family:inherit;"><i class="ti ti-x"></i></button>
+      <h2>📍 今日の記録</h2>
+      <button id="post-submit" onclick="submitPost()">投稿</button>
+    </div>
+    <div class="post-body">
+      <!-- Photo -->
+      <div>
+        <label class="post-label">写真・絵文字</label>
+        <div class="emoji-pick" id="emoji-pick"></div>
+      </div>
+      <!-- Location -->
+      <div>
+        <label class="post-label">場所</label>
+        <div class="post-location-row" onclick="pickLocation()">
+          <i class="ti ti-current-location"></i>
+          <span id="post-loc-text">現在地を取得</span>
+          <i class="ti ti-chevron-right" style="font-size:16px;color:var(--text3)"></i>
+        </div>
+      </div>
+      <!-- Text -->
+      <div>
+        <label class="post-label">今日の日記</label>
+        <textarea class="post-ta" id="post-ta" rows="4" placeholder="今日どこに行って、何を感じた？"></textarea>
+      </div>
+      <!-- Privacy -->
+      <div>
+        <label class="post-label">公開範囲</label>
+        <div class="privacy-toggle">
+          <button class="priv-btn sel" id="priv-friends" onclick="setPrivacy('friends')">
+            <i class="ti ti-users"></i>フレンドのみ
+          </button>
+          <button class="priv-btn" id="priv-me" onclick="setPrivacy('me')">
+            <i class="ti ti-lock"></i>自分だけ
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Friend Overlay -->
+  <div id="friend-overlay">
+    <div class="overlay-header">
+      <h2>👥 フレンド</h2>
+      <button class="overlay-close" onclick="closeFriends()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="friend-list" id="friend-list"></div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+</div>
+
+<script>
+/* ======== DATA ======== */
+const FRIENDS = [
+  { id:'me',   name:'あなた',   short:'あ', color:'#7C6FE0', pinClass:'', mapX:'42%', mapY:'45%' },
+  { id:'haru', name:'はるか',   short:'は', color:'#29B97A', mapX:'22%', mapY:'30%' },
+  { id:'sota', name:'そうた',   short:'そ', color:'#F06060', mapX:'68%', mapY:'55%' },
+  { id:'mio',  name:'みお',     short:'み', color:'#E86CA0', mapX:'75%', mapY:'24%' },
+];
+
+const ENTRIES = [
+  {
+    id:'e1', owner:'me',
+    emoji:'☀️', bgGrad:'linear-gradient(135deg,#B5D4F4 0%,#9FE1CB 100%)',
+    place:'渋谷スカイ展望台', time:'今日 14:32', ptime:'14:32',
+    text:'久しぶりに渋谷スカイ行った！天気最高で富士山まで見えた🗻 やっぱり東京の景色は最高だな〜',
+    reactions:[{e:'❤️',n:12},{e:'😂',n:3},{e:'✨',n:7}],
+    mapX:'42%', mapY:'45%',
+  },
+  {
+    id:'e2', owner:'haru',
+    emoji:'🍜', bgGrad:'linear-gradient(135deg,#D5F4E8 0%,#9FE1CB 100%)',
+    place:'新宿 麺屋武蔵', time:'今日 12:15', ptime:'12:15',
+    text:'武蔵のつけ麺、相変わらず最高すぎる…！並んだ甲斐あった。次は一緒に来よ！',
+    reactions:[{e:'❤️',n:8},{e:'🤤',n:15}],
+    mapX:'22%', mapY:'30%',
+  },
+  {
+    id:'e3', owner:'sota',
+    emoji:'🎸', bgGrad:'linear-gradient(135deg,#FFE5E5 0%,#FECACA 100%)',
+    place:'Shibuya WWW', time:'昨日 21:00', ptime:'21:08',
+    text:'好きなバンドのライブ！最前列取れてほんとに最高の夜だった。音楽って生で聴くのが一番。',
+    reactions:[{e:'🔥',n:20},{e:'❤️',n:11}],
+    mapX:'68%', mapY:'55%',
+  },
+  {
+    id:'e4', owner:'mio',
+    emoji:'🌸', bgGrad:'linear-gradient(135deg,#FFE0EF 0%,#F9A8D4 100%)',
+    place:'上野恩賜公園', time:'今日 10:45', ptime:'10:47',
+    text:'上野のカフェで勉強してきた☕ 桜の季節終わっても緑がめちゃ綺麗で集中できた〜',
+    reactions:[{e:'❤️',n:6},{e:'✨',n:9}],
+    mapX:'75%', mapY:'24%',
+  },
+  {
+    id:'e5', owner:'me',
+    emoji:'🌅', bgGrad:'linear-gradient(135deg,#FEF3C7 0%,#FCA5A5 100%)',
+    place:'羽田空港展望デッキ', time:'昨日 18:20', ptime:'18:22',
+    text:'夕焼けを見に羽田展望デッキへ。飛行機が夕日に向かって飛んでいくのがロマンチックすぎた✈️',
+    reactions:[{e:'❤️',n:14},{e:'😍',n:5}],
+    mapX:'30%', mapY:'68%',
+  },
+];
+
+const POST_EMOJIS = ['📸','🍜','☀️','🌅','🎸','🌸','🍺','🎮','📚','🏃','🛍️','✈️','🌿','🎨'];
+const LOCATIONS = ['渋谷スクランブル交差点','新宿御苑','浅草寺','六本木ヒルズ','代官山','自由が丘','下北沢','吉祥寺','恵比寿','表参道'];
+
+let activeFilter = 'all';
+let selectedEmoji = '📸';
+let selectedPrivacy = 'friends';
+let postLocText = '現在地を取得';
+let userReactions = {};
+let entries = JSON.parse(localStorage.getItem('mapiary_entries') || 'null') || ENTRIES;
+
+/* ======== INIT ======== */
+function init() {
+  renderFilterBar();
+  renderPins();
+  renderFriendList();
+  renderEmojiPick();
+}
+
+/* ======== FILTER BAR ======== */
+function renderFilterBar() {
+  const bar = document.getElementById('filter-bar');
+  bar.innerHTML = '';
+  const all = makeChip('全員','all',activeFilter==='all');
+  bar.appendChild(all);
+  FRIENDS.forEach(f => {
+    bar.appendChild(makeChip(f.name, f.id, activeFilter===f.id, f.color));
+  });
+}
+function makeChip(label, key, active, color) {
+  const d = document.createElement('button');
+  d.className = 'chip' + (active ? ' active' : '');
+  d.innerHTML = color ? `<span class="dot" style="background:${color}"></span>${label}` : label;
+  d.onclick = () => {
+    activeFilter = key;
+    renderFilterBar();
+    renderPins();
+  };
+  return d;
+}
+
+/* ======== PINS ======== */
+function renderPins() {
+  const container = document.getElementById('pins');
+  container.innerHTML = '';
+  entries.forEach(e => {
+    const friend = FRIENDS.find(f => f.id === e.owner);
+    const hidden = activeFilter !== 'all' && activeFilter !== e.owner;
+    const wrap = document.createElement('div');
+    wrap.className = 'pin-wrap' + (hidden ? ' hidden' : '');
+    wrap.style.left = e.mapX;
+    wrap.style.top = e.mapY;
+    wrap.innerHTML = `
+      <div class="pin-bubble" style="background:${friend.color};">${e.emoji}</div>
+      <div class="pin-tail" style="border-top:8px solid ${friend.color}"></div>
+      <div class="pin-name">${friend.name}</div>
+    `;
+    wrap.onclick = () => openDiary(e.id);
+    container.appendChild(wrap);
+  });
+}
+
+/* ======== DIARY SHEET ======== */
+function openDiary(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  const friend = FRIENDS.find(f => f.id === e.owner);
+  document.getElementById('s-avatar').textContent = friend.short;
+  document.getElementById('s-avatar').style.background = friend.color;
+  document.getElementById('s-name').textContent = friend.name;
+  document.getElementById('s-place').textContent = e.place;
+  document.getElementById('s-time').textContent = e.time;
+  document.getElementById('s-emoji').textContent = e.emoji;
+  document.getElementById('s-photo').style.background = e.bgGrad;
+  document.getElementById('s-ptime').textContent = e.ptime;
+  document.getElementById('s-text').textContent = e.text;
+
+  const row = document.getElementById('s-reactions');
+  row.innerHTML = '';
+  e.reactions.forEach((r, i) => {
+    const key = id + '_' + i;
+    const on = userReactions[key];
+    const btn = document.createElement('button');
+    btn.className = 'react-btn' + (on ? ' on' : '');
+    btn.innerHTML = `${r.e} <span class="cnt">${on ? r.n+1 : r.n}</span>`;
+    btn.onclick = () => {
+      userReactions[key] = !userReactions[key];
+      openDiary(id);
+    };
+    row.appendChild(btn);
+  });
+
+  document.getElementById('diary-sheet').classList.add('open');
+}
+function closeSheet() {
+  document.getElementById('diary-sheet').classList.remove('open');
+}
+
+/* ======== POST SHEET ======== */
+function renderEmojiPick() {
+  const pick = document.getElementById('emoji-pick');
+  pick.innerHTML = '';
+  POST_EMOJIS.forEach(em => {
+    const d = document.createElement('div');
+    d.className = 'emoji-opt' + (em === selectedEmoji ? ' sel' : '');
+    d.textContent = em;
+    d.onclick = () => { selectedEmoji = em; renderEmojiPick(); };
+    pick.appendChild(d);
+  });
+}
+function openPost() {
+  closeSheet();
+  document.getElementById('post-sheet').classList.add('open');
+  document.getElementById('post-ta').value = '';
+}
+function closePost() {
+  document.getElementById('post-sheet').classList.remove('open');
+}
+function pickLocation() {
+  const locs = LOCATIONS;
+  postLocText = locs[Math.floor(Math.random()*locs.length)];
+  document.getElementById('post-loc-text').textContent = postLocText;
+  showToast('📍 場所を設定しました');
+}
+function setPrivacy(p) {
+  selectedPrivacy = p;
+  document.getElementById('priv-friends').classList.toggle('sel', p==='friends');
+  document.getElementById('priv-me').classList.toggle('sel', p==='me');
+}
+function submitPost() {
+  const text = document.getElementById('post-ta').value.trim();
+  if (!text) { showToast('日記を書いてね！'); return; }
+  const loc = document.getElementById('post-loc-text').textContent;
+  if (loc === '現在地を取得') { showToast('場所を設定してね！'); return; }
+
+  const xs = ['15%','30%','50%','65%','80%'];
+  const ys = ['35%','50%','62%','72%'];
+  const newEntry = {
+    id: 'u_' + Date.now(),
+    owner: 'me',
+    emoji: selectedEmoji,
+    bgGrad: 'linear-gradient(135deg,#EAE8FF 0%,#C4B5FD 100%)',
+    place: loc,
+    time: '今日 ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}),
+    ptime: new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}),
+    text: text,
+    reactions:[{e:'❤️',n:0},{e:'✨',n:0}],
+    mapX: xs[Math.floor(Math.random()*xs.length)],
+    mapY: ys[Math.floor(Math.random()*ys.length)],
+    privacy: selectedPrivacy,
+  };
+  entries.unshift(newEntry);
+  try { localStorage.setItem('mapiary_entries', JSON.stringify(entries)); } catch(e){}
+  closePost();
+  renderPins();
+  showToast('✅ 投稿しました！');
+}
+
+/* ======== FRIENDS OVERLAY ======== */
+function renderFriendList() {
+  const list = document.getElementById('friend-list');
+  list.innerHTML = '';
+  FRIENDS.forEach(f => {
+    const lastEntry = entries.find(e => e.owner === f.id);
+    const row = document.createElement('div');
+    row.className = 'friend-row';
+    row.innerHTML = `
+      <div class="friend-row-avatar" style="background:${f.color}">${f.short}</div>
+      <div class="friend-row-info">
+        <div class="friend-row-name">${f.name}</div>
+        <div class="friend-row-last">${lastEntry ? lastEntry.emoji + ' ' + lastEntry.place : '投稿なし'}</div>
+      </div>
+      <div class="friend-row-dot" style="background:${f.color}"></div>
+    `;
+    row.onclick = () => {
+      activeFilter = f.id;
+      closeFriends();
+      renderFilterBar();
+      renderPins();
+      if (lastEntry) setTimeout(() => openDiary(lastEntry.id), 400);
+    };
+    list.appendChild(row);
+  });
+}
+function openFriends() {
+  document.getElementById('friend-overlay').classList.add('open');
+}
+function closeFriends() {
+  document.getElementById('friend-overlay').classList.remove('open');
+  setNav(document.querySelector('.nav-btn'), 'map');
+}
+
+/* ======== NAV ======== */
+function setNav(el, key) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+/* ======== TOAST ======== */
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+init();
+</script>
+</body>
+</html>
